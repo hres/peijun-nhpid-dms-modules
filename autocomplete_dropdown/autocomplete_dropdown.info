@@ -1,0 +1,13 @@
+; $Id: autocomplete_dropdown.info,v 1.1.2.1 2009/02/24 01:44:29 markuspetrux Exp modified by peijun zhang$
+name = Autocomplete Dropdown
+description = Provides autocomplete widgets for CCK Text and Number fields.
+
+package = Field
+core = 7.x
+
+; Information added by drupal.org packaging script on 2009-12-30
+version = "7.x-1.3"
+core = "7.x"
+project = "autocomplete_dropdown"
+datestamp = "1262195403"
+

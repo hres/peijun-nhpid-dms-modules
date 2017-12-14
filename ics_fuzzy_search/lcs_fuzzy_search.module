@@ -1,0 +1,466 @@
+<?php
+// $Id: lcs_fuzzy_search.module,v 1.0.0 2010/07/27 15:26:16 peijun zhang $
+//ini_set('memory_limit','6000M');
+//$path = drupal_get_path('module', 'search');
+//drupal_add_css($path .'/search.css');
+
+function lcs_fuzzy_search_permission() {
+    return array(
+    'access LCS Fuzzy Search' => array(
+      'title' => t('Use LCS Fuzzy Search'), 
+      'description' => t('Search the site using LCS algorithm.'),
+      ),
+    );
+
+} // function nhpid_perm()
+
+
+function lcs_fuzzy_search_menu() {
+
+  $items = array();
+  $root = 'lcs_fuzzy_search';
+  $items[$root] = array(
+    'title' => t('ICS Fuzzy Search'),
+    'description' => 'Search nodes based LCS algorithm',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('lcs_fuzzy_search_form'),
+    'access arguments' => array('access LCS Fuzzy Search'),
+    'type' => MENU_NORMAL_ITEM,
+   );
+   $items[$root . '/js'] = array(
+    'page callback' => 'lcs_fuzzy_search_js',
+    'access arguments' => array('access LCS Fuzzy Search'),
+    'type' => MENU_CALLBACK,
+  );
+   
+
+  return $items;
+}
+/**
+ * Implementation of hook_block().
+ */
+function lcs_fuzzy_search_block_info() {
+  $blocks = array();
+ 
+  $blocks['info'] = array(
+    'info' => t('ICS fuzzy search block')
+  );
+ 
+  return $blocks;
+}
+function lcs_fuzzy_search_block_view($delta = ''){
+   $block = array();
+ 
+   $block['content'] = drupal_get_form('lcs_fuzzy_search_block_form');
+   $block['subject'] = t('LCS Fuzzy Search');
+ 
+   return $block;
+ }
+
+function lcs_fuzzy_search_block_form($form, &$form_state) {
+  $keyword = !empty($form_state['values']['keyword']) ?  $form_state['values']['keyword'] : '';
+  
+  $form['keyword'] = array(
+    '#title' => t('Search this site'),
+    '#type' => 'textfield',
+    '#size' => 15,
+    '#default_value' => $keyword,
+    '#attributes' => array('title' => t('Enter the terms you wish to search for.')),
+  );
+  
+  $form['submit'] = array(
+    '#type' => 'submit', 
+    '#value' => t('Fuzzy Search'),
+
+    );
+  $form['#submit'][] = 'lcs_fuzzy_search_block_form_submit';
+  $form['#attributes'] = array('class' => 'ics-fuzzy-search-form');
+
+  return $form;
+}
+
+function lcs_fuzzy_search_block_form_validate($form, &$form_state) {
+  
+  $keyword = $form_state['values']['keyword'];
+  if (strlen($keyword) < variable_get('minimum_word_size', 3)) {
+    form_set_error('keyword', 'Keyword must be at least 3 characters long.');
+  }
+}
+
+
+/**
+ * Process a block search form submission.
+ */
+function lcs_fuzzy_search_block_form_submit($form, &$form_state) {
+  
+  $keyword = $form_state['values']['keyword'];
+  $score_cutoff = 0.85;
+  $display_cutoff = 10;
+  drupal_goto("lcs_fuzzy_search/", array('query' =>array('keyword' =>$keyword )), 301);
+}
+
+
+function lcs_fuzzy_search_form($form, &$form_state=NULL, $keyword = '', $score_cutoff = 0.85, $display_cutoff = 10) {
+  //$form = array();
+  //drupal_set_message(nhpid_api_dump($form_state, 'purple', TRUE));
+  //drupal_set_message(nhpid_api_dump(arg(1), 'purple', TRUE));
+  $keyword = $keyword ? $keyword : $_GET['keyword'];
+  $score_cutoff = $score_cutoff ? $score_cutoff : $_GET['score_cutoff'];
+  $display_cutoff = $display_cutoff ? $display_cutoff : $_GET['display_cutoff'];
+  $form['fuzzy_search'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Fuzzy search'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+    '#description' => t(""),
+    '#prefix' => '<div id="lcs_fuzzy_search_wrapper">',
+    '#suffix' => '</div>',
+  );
+  $form['fuzzy_search']['help'] = array(
+    '#type' => 'item',
+    '#description' => t("Start your search with a high score (>0.85). If no results are returned, lower the score. Fuzzy Search can be slow. The lower the score, the slower the search."),
+  );
+  $keyword = !empty($form_state['values']['keyword']) ?  $form_state['values']['keyword'] : $keyword;
+  $form['fuzzy_search']['keyword'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Keyword'),
+    '#description' => t("Drupal takes all the content in the field as a 'single' word."),
+    '#default_value' => $keyword,
+    '#size' => 60,
+    '#required' => TRUE,
+   );
+   $score = !empty($form_state['values']['score']) ?  $form_state['values']['score'] : $score_cutoff;
+   //$score = $score_cutoff;
+   $form['fuzzy_search']['score'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Score cutoff'),
+    '#description' => t("The match score cutoff. Set to 0.5 to 1."),
+    '#default_value' => $score,
+    '#size' => 10,
+    '#required' => TRUE,
+   );
+   $display = !empty($form_state['values']['display']) ?  $form_state['values']['display'] : $display_cutoff;
+   //$display = $display_cutoff;
+   $options = array('1' => '1', '5' => '5', '10' => '10', '20' => '20', '50' => '50', 'all' => 'All');
+   $form['fuzzy_search']['display'] = array(
+    '#type' => 'select',
+    '#options' => $options,
+    '#title' => t('Display cutoff'),
+    '#description' => t("The display cutoff. How many hits to be displayed at most. "),
+    '#default_value' => $display,
+    '#multiple' => FALSE,
+    '#required' => TRUE,
+   );
+  $form['fuzzy_search']['start'] = array(
+    '#type' => 'submit',
+    '#value' => t('Search'),
+    '#ajax' => array(
+      'event' => 'click',
+      //'path' => 'lcs_fuzzy_search/js',
+      //'wrapper' => 'lcs_fuzzy_search_wrapper',
+      //'method' => 'replace',
+      'effect' => 'fade',
+      'progress' => array(
+        'type' => 'bar',
+        'message' => t('Searching...'),
+      )      
+    ),
+  );
+  //drupal_set_message(nhpid_api_dump($keyword, 'purple', TRUE));
+  if ($keyword) {
+    $result = null;
+    $result = ics_fuzzy_search($keyword, $score, $display, TRUE);
+    $form['fuzzy_search']['result'] = array(
+      '#type' => 'item',
+      '#title' => 'Results',
+      '#markup' => $result,
+      '#access' => $result,
+    );
+  }
+  
+  $form['#validate'][] = 'lcs_fuzzy_search_form_validate';
+  return $form;
+}
+
+function lcs_fuzzy_search_form_validate($form, &$form_state) {
+  $score = floatval($form_state['values']['score'] );
+  //drupal_set_message(nhpid_api_dump($score, 'purple', TRUE));
+  if ($score < 0.5 or $score > 1) {
+    form_set_error('score', 'Score must be set between 0.5 and 1.');
+  }
+  $keyword = $form_state['values']['keyword'];
+  if (strlen($keyword) < variable_get('minimum_word_size', 3)) {
+    form_set_error('keyword', 'Keyword must be at least 3 characters long.');
+  }
+}
+
+/**
+ * settings form handler
+ */
+function lcs_fuzzy_search_form_submit($form, &$form_state) {
+  $form_state['rebuild'] = TRUE;
+  $form_state['storage']['values'] = $form_state['values'];
+  $keyword = $form_state['storage']['values']['keyword'];
+  $score_cutoff = $form_state['storage']['values']['score'];
+  $display_cutoff = $form_state['storage']['values']['display'];
+  //$form_state['redirect'] = "lcs_fuzzy_search/$keyword";
+  //sleep(5);
+  //drupal_goto("lcs_fuzzy_search/", array('query' =>array('keyword' =>$keyword, 'score_cutoff' => $score_cutoff, 'display_cutoff' => $display_cutoff )), 301);
+}
+
+function lcs_fuzzy_search_js() {
+  $form = lcs_fuzzy_search_js_helper();
+
+   // This section prepares the actual output that will be returned to the
+   // browser.
+   
+   //$form['wrapper_fieldset']['submit']['#disabled'] = '0';
+   $wrapper_fieldset = $form['fuzzy_search'];
+
+   // To avoid doubling-up the wrapper, we have to remove it here.
+   unset($wrapper_fieldset['#prefix'], $wrapper_fieldset['#suffix']);
+   
+   // Now render and output.
+   $output = drupal_render($wrapper_fieldset);
+
+   // Include (optionally) the results of any drupal_set_message() calls that
+   // may have occurred.
+   $output .= theme('status_messages');
+    //drupal_set_message(nhpid_api_dump($output, 'purple', TRUE));
+   // Output the results and exit.
+   print drupal_json_output(array('status' => TRUE, 'data' => $output));
+
+    exit();
+}
+
+function lcs_fuzzy_search_js_helper() {
+  $form_state = array('storage' => NULL, 'submitted' => FALSE);
+  $form_build_id = $_POST['form_build_id'];
+  $form = form_get_cache($form_build_id, $form_state);
+  $args = $form['#parameters'];
+  $form_id = array_shift($args);
+  $form_state['post'] = $form['#post'] = $_POST;
+  // Enable the submit/validate handlers to determine whether AHAH-submittted.
+  $form_state['ahah_submission'] = TRUE;  
+  
+  $form['#programmed'] = $form['#redirect'] = FALSE;
+  
+  //added by David Shaw
+  //$form_state['rebuild'] = TRUE;
+  
+  drupal_process_form($form_id, $form, $form_state);
+  $form = drupal_rebuild_form($form_id, $form_state, $args, $form_build_id);
+  return $form;
+}
+
+/**
+* Port of Sedgewick & Wayne's Longest Common Subsequence algorithm 
+* found here:
+*
+* @see http://www.cs.princeton.edu/introcs/96optimization/LCS.java.html
+* @see http://www.cs.princeton.edu/introcs/96optimization/
+*
+* @author Paul Meagher
+* @ported Feb 21, 2008
+*
+* See also:
+*
+* @see http://www.ics.uci.edu/~eppstein/161/960229.html
+*
+* @param string $S1 first string 
+* @param string $S2 second string 
+* @returns string containing common subsequence or empty string
+*/
+function string_lcs($S1, $S2) {
+  
+  $m = strlen($S1);
+  $n = strlen($S2);
+  
+  //drupal_set_message(nhpid_api_dump("$S1, $S2", 'brown', TRUE));
+
+  // A[i][j] = length of LCS of S1[i..m] and S2[j..n]
+  $A = array();
+
+  // compute length of LCS and all subproblems via dynamic programming
+  
+  for ($i = $m-1; $i >= 0; $i--) {
+    for ($j = $n-1; $j >= 0; $j--) {
+      if ($S1[$i] == $S2[$j])
+        if(isset($A[$i+1][$j+1])) $A[$i][$j] = $A[$i+1][$j+1] + 1;
+      else 
+        if(isset($A[$i+1][$j+1])) $A[$i][$j] = max($A[$i+1][$j], $A[$i][$j+1]);
+    }
+  }
+
+  // recover LCS itself and print it to standard output
+  $i = 0;
+  $j = 0;
+  $LCS = "";
+  while($i < $m && $j < $n) {
+    if ($S1[$i] == $S2[$j]) {
+      $LCS .= $S1[$i];
+      $i++;
+      $j++;
+    } elseif (isset($A[$i+1][$j]) and isset($A[$i][$j+1]) and $A[$i+1][$j] >= $A[$i][$j+1]) 
+      $i++;
+    else                                 
+      $j++;
+  }
+  
+  return $LCS;
+
+}
+
+function string_lcs_score($S1, $S2) {
+  $lcs = string_lcs(strtolower($S1), strtolower($S2));
+  return strlen($lcs)/max($S1, strlen($S2));
+}
+
+function ics_fuzzy_search($keyword, $score_cut = 0.85, $display_hits = 10, $html_table = TRUE) {
+  $final_hits = array();
+  $search_results = array();
+  if (module_hook('node', 'search_execute')) $search_results = module_invoke('node', 'search_execute',  $keyword);
+  if ($search_results) {
+    $result = '';
+    foreach ($search_results as $item) {
+     $result = $result . _extract_search_result($item);
+    }
+    $final_hits[strtolower($keyword)] = array('score' => 1, 'word' => $keyword, 'result' => $result);
+  }
+      
+  
+  $keyword = search_simplify($keyword);
+  $keyword_len = strlen($keyword);
+  $margin = 0.0001;
+  $score_cut = $score_cut - $margin;
+  $hits = array();
+  $sql = "select * from search_index where type='node' and least(length(word), $keyword_len)/greatest(length(word), $keyword_len) >= $score_cut";
+  //drupal_set_message(nhpid_api_dump($sql, 'brown', TRUE));
+  $result = db_query($sql);
+
+  //while($hit = db_fetch_object($result)) {
+  foreach($result as $hit){
+    //$key = $hit -> type . '~' . $hit -> sid;
+    //$hints[$key] = $hit;
+    $word = $hit -> word;
+    if (_fuzzy_search_prescreening(strtolower($word), strtolower($keyword)) < $score_cut) continue;
+    $lcs = string_lcs(strtolower($word), strtolower($keyword));
+    //drupal_set_message(nhpid_api_dump("$word : $keyword : $lcs", 'brown', TRUE));
+    if ($lcs) {
+      //
+      $score = strlen($lcs)/max($keyword_len, strlen($word));
+      //drupal_set_message(nhpid_api_dump("$word : $keyword : $lcs : $score : $score_cut", 'brown', TRUE));
+      if ($score >= $score_cut) {
+        
+        if (strlen($word) >= variable_get('minimum_word_size', 3)) $hits[$word] = array('score' => $score, 'word' => $word, 'type' => $hit -> type);
+      }
+    }
+    $hits = array_orderby($hits, 'score',SORT_DESC);
+    
+  }
+  $pre_score = NULL;
+  //$hit_count = 1;
+  
+  //$display_hits = round($display_hits);
+  foreach($hits as $key => $hit) {
+    if ($display_hits == 'all' or (count($final_hits) <= $display_hits or $hit['score'] == $pre_score)) {
+    //if ($hit_count <= $display_hits ) {
+      //drupal_set_message(nhpid_api_dump("module_invoke(" . $hit['type'] . ", 'search', 'search', ". $hit['word'] . ")", 'brown', TRUE));
+      if (module_hook('node', 'search_execute')) {
+        $search_results = module_invoke($hit['type'], 'search_execute', $hit['word']);
+        $result = '';
+        foreach ($search_results as $item) {
+          //drupal_set_message(nhpid_api_dump($item, 'brown', TRUE));
+          $result = $result . _extract_search_result($item);
+        }
+        $final_hits[$key] = array('score' => round($hit['score'], 4), 'word' => $hit['word'], 'result' => $result);
+      }
+    }
+    else {
+      break;
+    }
+
+    $pre_score = $hit['score'];
+    //$hit_count ++;
+  }
+  //drupal_set_message(nhpid_api_dump($hits, 'blue', TRUE));
+  //drupal_set_message(nhpid_api_dump($final_hits, 'blue', TRUE));
+  if (!empty($final_hits)){
+    if ($html_table) {
+      $header = array('Word', "Score", "Hits");
+      $data = array();
+      foreach ($final_hits as $hit) {
+        $data[] = array(array('data' => $hit['word'], 'valign' => 'top'), array('data' => $hit['score'], 'valign' => 'top'), $hit['result']);
+      }
+      return theme_table(array('header' => $header, 'rows' => $data, 'attributes' => array(), 'caption' => null, 'colgroups' => array(), 'sticky' => TRUE, 'empty' => 'No data'));
+    }
+    return $final_hits;
+  }
+  
+  else {
+    return "Fuzzy Search hits nothing. Please lower the score or change the spelling of the keyword and try it again.";
+  }
+  
+}
+
+function array_orderby()
+{
+    $args = func_get_args();
+    //drupal_set_message(nhpid_api_dump($args, 'red', TRUE));
+    $data = array_shift($args);
+    
+    foreach ($args as $n => $field) {
+        if (is_string($field)) {
+            $tmp = array();
+            foreach ($data as $key => $row)
+                $tmp[$key] = $row[$field];
+            $args[$n] = &$tmp;
+        }
+        else {
+          $args[$n] = &$field; ## required by php 5.3
+        }
+    }
+    $args[] = &$data;
+    //drupal_set_message(nhpid_api_dump($args, 'brown', TRUE));
+    call_user_func_array('array_multisort', $args);
+    //array_multisort($args);
+    return array_pop($args);
+}
+
+function _fuzzy_search_prescreening($str1, $str2) {
+  //$str = '';
+  //if ($str and $str == FALSE) return 0;
+  $longer = $str2;
+  $shorter = $str1;
+  if (strlen($str1) > strlen($str2)) {
+    $longer = $str1;
+    $shorter = $str2;
+  }
+  $longer_len = strlen($longer);
+  for ($i = 0; $i < strlen($shorter); $i++) {
+    $longer = preg_replace('/' . substr($shorter, $i, 1) . '/', '', $longer, 1);
+  }
+  
+  $score = ($longer_len - strlen($longer))/$longer_len;
+  //if ($score > 0.5) drupal_set_message(nhpid_api_dump("$longer : $shorter : $score", 'brown', TRUE));
+  return $score;
+}
+function _extract_search_result($search_result) {
+  //drupal_set_message(nhpid_api_dump($search_result, 'brown', TRUE));
+  $url = $search_result['link'];
+  $title = $search_result['title'];
+  $snippet = $search_result['snippet'];
+  $type = $search_result['type'];
+  $user = $search_result['user'];
+  $date = format_date($search_result['date'], 'small');
+  $comment = $search_result['node'] -> comment;
+  $workflow = null;
+  if (workflow_get_workflow_node_by_nid($search_result['node'] -> nid) ) $workflow = ' - ' . workflow_get_workflow_states_by_sid(workflow_node_current_state($search_result['node'])) -> state;
+  //drupal_set_message(nhpid_api_dump($search_result['node'], 'brown', TRUE));
+  $info = "$type" . $workflow . "- $user - $date - $comment comments";
+  $result = "<dl class='search-results node-results><dt class='title'><a href='$url' target='_blank'>$title</a></dt><dd><p class='search-snippet'> $snippet</p><p class='search-info'>$info</p></dd></dl>";
+  //drupal_set_message(nhpid_api_dump($result, 'brown', TRUE));
+  //drupal_set_message(nhpid_api_dump($search_result, 'brown', TRUE));
+  
+  return $result;
+}

@@ -1,0 +1,9 @@
+; $Id: ics_fuzzy_search.info,v 1.0.0 2010/07/27 15:26:16 peijun zhang $
+name = "LCS Fuzzy Search"
+description = "This module conducts fuzzy search of drupal node based on the Longest Common Sequence (LCS) algorithm."
+core = "7.x"
+version = "7.x-1.0"
+package = Search Engine
+dependencies[] = search
+
+
