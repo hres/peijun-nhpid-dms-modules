@@ -1,6 +1,6 @@
 <?php
 // $Id: nhpid_data_export.module,v 1.0.0 2010/07/27 15:26:16 peijun zhang $
-include_once 'XML/Serializer.php';
+//include_once 'XML/Serializer.php';
 include_once 'PHPExcel/PHPExcel.php';
 //libraries_load('PHPExcel');
 //module_load_include('inc', 'phpexcel', 'phpexcel');
@@ -72,7 +72,7 @@ function nhpid_data_export_form($form, &$form_state) {
   $formats = array();
   $formats['cvs'] = DELIMINATOR . " deliminated text file";
   $formats['html'] = "HTML tables";
-  $formats['xml'] = "XML file";
+  //$formats['xml'] = "XML file";
   $formats['Excel5'] = "Excel 5";
   $formats['Excel5_ori_field'] = "Excel 5 using original excel field titles";
   
@@ -577,12 +577,8 @@ function nhpid_data_result_batch($form_state=NULL) {
   $date_from = $form_state['values']['date_from'];
   $date_to = $form_state['values']['date_to'];
   $seconds_to_add = 24 * 3600 - 1; // set time the last second of the day
-  $date_obj_from = new Date($date_from);
-  //$date_obj_from -> addSeconds($seconds_to_add);
-  $timestamp_from = $date_obj_from -> getDate(DATE_FORMAT_UNIXTIME);
-  $date_obj_to = new Date($date_to);
-  $date_obj_to -> addSeconds($seconds_to_add);
-  $timestamp_to = $date_obj_to -> getDate(DATE_FORMAT_UNIXTIME);
+  $timestamp_from = strtotime($date_from) + $seconds_to_add;
+  $timestamp_to = strtotime($date_to);
   $export_all = $form_state['values']['export_all'];
 	
   $node_types_selected = array();
@@ -871,6 +867,7 @@ function nhpid_data_export_result($type, $wk_state, $format,$next_node_type, &$c
       $file_path = $file_path . "/" . $file_name;
       $file_path = file_unmanaged_save_data($file_output, $file_path, FILE_EXISTS_RENAME);
       break;
+	  /*
     case 'xml';
       $file_name = "nhpid_data_$type.xml";
       $options = array(
@@ -922,6 +919,7 @@ function nhpid_data_export_result($type, $wk_state, $format,$next_node_type, &$c
       $file_path = $file_path . "/" . $file_name;
       $file_path = file_unmanaged_save_data($file_output, $file_path, FILE_EXISTS_RENAME);
       break;
+	  */
     case 'Excel5':
     case 'Excel5_ori_field':
       $file_name = "nhpid_data_$type" . ".xls";
