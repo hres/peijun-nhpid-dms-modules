@@ -1,9 +1,0 @@
-; $Id: nhpid_redexing.info,v 1.0.0 2010/07/27 15:26:16 peijun zhang $
-name = "Search Reindexing"
-description = "This module reindex search indexes."
-core = "7.x"
-version = "7.x-1.0"
-package = Search Engine
-dependencies[] = search
-
-
