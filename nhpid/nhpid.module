@@ -4,7 +4,7 @@ define('NHPID_AUTO_WORKFLOW_MSG', 'Changed based on the NHPID dependency rule au
 define('BODY_DEFAULT', "You do not need to input anything. I'll generate a proper text later. If you change it to anything else, I will accept it.");
 define('TITLE_DEFAULT', "I will generate a meaningful title later. Whatever you enter here will be ignored.");
 define("SYSTEM_LOCK_VARIABLE", 'nhpiddms_system_lock');
-include_once('InFlect.php');
+//include_once('InFlect.php');
 
 
 function nhpid_cron(){
@@ -287,12 +287,10 @@ function nhpid_form_node_form_alter(&$form, &$form_state, $form_id){
 function nhpid_preprocess_field(&$vars) {
   //drupal_set_message(nhpid_api_dump($vars, 'green', TRUE));
 	if (count($vars['items']) > 1) {
-			$inflect = new InFlect;
-      //drupal_set_message(nhpid_api_dump($vars['label'], 'green', TRUE));
+			//$inflect = new InFlect;
       
-			$vars['label'] = $inflect->pluralize($vars['label']);
-      $vars['element']['#title'] = $inflect->pluralize($vars['label']);
-      //drupal_set_message(nhpid_api_dump($vars['label'], 'red', TRUE));
+			//$vars['label'] = $inflect->pluralize($vars['label']);
+			//$vars['element']['#title'] = $inflect->pluralize($vars['label']);
   }
 }
 function nhpid_node_access($node, $op, $account){

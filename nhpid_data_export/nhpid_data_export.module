@@ -373,30 +373,29 @@ function nhpid_data_export_form_validate($form, &$form_state) {
         form_set_error('saved_profiles', 'Please select a saved profile.');
       }
       break;
-			case 'edit-submit':
+	  case 'edit-submit':
 			if (!$form_state['values']['export_all']){
-				$date_from = $form_state['values']['date_from'];
-			  $date_obj_from = new Date($date_from);
+			  $date_from = $form_state['values']['date_from'];
+			  $date_timestamp_from =  strtotime($date_from);
 			  $errors = array();
-			  if (!(checkdate($date_obj_from->getMonth(), $date_obj_from->getDay(), $date_obj_from->getYear()))) {
-			    if (!$errors['date_from']) $errors['date_from'] = 'The format for Date from is not correct.';
+			  if (!(checkdate(date('n', $date_timestamp_from), date('j', $date_timestamp_from), date('Y', $date_timestamp_from)))) {
+			    if (!isset($errors['date_from'])) $errors['date_from'] = 'The format for Date from is not correct.';
 			  }
-			  if ($date_obj_from->isFuture()) {
-			    if (!$errors['date_from']) $errors['date_from'] = 'Date from must be before current date.';
+			  if ($date_timestamp_from > time()) {
+			    if (!isset($errors['date_from'])) $errors['date_from'] = 'Date from must be before current date.';
 			  }
 			  $date_to = $form_state['values']['date_to'];
-			  $date_obj_to = new Date($date_to);
-			  if (!(checkdate($date_obj_to->getMonth(), $date_obj_to->getDay(), $date_obj_to->getYear()))) {
+			  $date_timestamp_to = strtotime($date_to);
+			  if (!(checkdate(date('n', $date_timestamp_to), date('j', $date_timestamp_to), date('Y', $date_timestamp_to)))) {
 			    $errors['date_to'] = 'The format for Date to is not correct.';
 			  }
-			  if ($date_obj_from -> after($date_obj_to)) {
-			    if (!$errors['date_from']) $errors['date_from'] = 'Date from must be before Date to.';
+			 
+			  if ($date_timestamp_from >= $date_timestamp_to) {
+			    if (!isset($errors['date_from'])) $errors['date_from'] = 'Date from must be before Date to.';
 			  }
-			  if ($errors) {
+			 if ($errors) {
 			    $form['submit']['#attributes'] = array();
-			    //$form['submit']['#attributes'] = array('onclick' => 'this.form.target="_blank"; return ture;');
-			    //$erroes = array_reverse($errors, TRUE);
-			    //drupal_set_message(nhpid_api_dump($erroes, 'red', TRUE));
+			    
 			    foreach ($errors as $key => $msg) {
 			      form_set_error($key, $msg);
 			    }
@@ -620,19 +619,14 @@ function nhpid_data_result_multi_tabs_batch($form_state=NULL) {
   $node_types = !empty($form_state['values']['node_types']) ? $form_state['values']['node_types'] : '';
   $wk_state = !empty($form_state['values']['wk_state']) ? $form_state['values']['wk_state'] : 'all';
   $format = !empty($form_state['values']['format']) ? $form_state['values']['format'] : 'xml';
-  $lines_limit = !empty($form_state['values']['lines_limit']) ? $form_state['values']['lines_limit'] : '500';
   $test_export = isset($form_state['values']['test_export']) ? $form_state['values']['test_export'] : false;
   $date_from = $form_state['values']['date_from'];
   $date_to = $form_state['values']['date_to'];
-  $export_all = $form_state['values']['export_all'];
   $seconds_to_add = 24 * 3600 - 1; // set time the last second of the day
-  $date_obj_from = new Date($date_from);
-  //$date_obj_from -> addSeconds($seconds_to_add);
-  $timestamp_from = $date_obj_from -> getDate(DATE_FORMAT_UNIXTIME);
-  $date_obj_to = new Date($date_to);
-  $date_obj_to -> addSeconds($seconds_to_add);
-  $timestamp_to = $date_obj_to -> getDate(DATE_FORMAT_UNIXTIME);
-	if ($test_export) $lines_limit = 20;
+  $timestamp_from = strtotime($date_from) + $seconds_to_add;
+  $timestamp_to = strtotime($date_to);
+  $export_all = $form_state['values']['export_all'];
+  if ($test_export) $lines_limit = 20;
   global $tmp_data_files;
   $operations = array();
   
