@@ -60,19 +60,15 @@ function nhpid_data_export_form($form, &$form_state) {
 		$types[$type]=array('type'=>$value);
   }
   
-  //drupal_set_message(nhpid_api_dump($types, 'red', TRUE));
-  //drupal_set_message(nhpid_api_dump($default_types, 'green', TRUE));
   $selected_node_types = !empty($form_state['values']['node_types']) ? $form_state['values']['node_types'] : $default_types;
   unset($form_state['input']); //=$form_state['values'];
-  //drupal_set_message(nhpid_api_dump($selected_node_types, 'green', TRUE));
-  //drupal_set_message(nhpid_api_dump($form_state, 'green', TRUE));
-  //$selected_node_types = !empty($form_state['values']['node_types']) ? $form_state['values']['node_types'] : NULL;
+
   $format = !empty($form_state['values']['format']) ? $form_state['values']['format'] : 'Excel5_ori_field';
   
   $formats = array();
   $formats['cvs'] = DELIMINATOR . " deliminated text file";
   $formats['html'] = "HTML tables";
-  //$formats['xml'] = "XML file";
+
   $formats['Excel5'] = "Excel 5";
   $formats['Excel5_ori_field'] = "Excel 5 using original excel field titles";
   
@@ -217,7 +213,7 @@ function nhpid_data_export_form($form, &$form_state) {
     '#default_value' => $lines_limit,
     '#description' => t('Select line number per sheet. If number of nodes of one content type is more than the line number selected. Multiple sheets will be generated.'),
   );
-  $export_all = isset($form_state['values']['export_all']) ? $form_state['values']['export_all'] : false;
+  $export_all = isset($form_state['values']['export_all']) ? $form_state['values']['export_all'] : True;
   $form['data']['export_all'] = array(
     '#type' => 'checkbox',
     '#title' => t('Export All (Date modified will be ignored)'),
